@@ -8,59 +8,38 @@ import { useFocusMonitor } from '@/hooks/useFocusMonitor';
 import { useToast } from '@/hooks/useToast';
 import { getAllLogs, logEvent, markSubmitted, resetLogger, startAutoFlush, stopAutoFlush, subscribeToLogs } from '@/lib/eventLogger';
 import { useState, useCallback, useEffect } from 'react';
+import { submitAttempt } from "@/api/attempt.api";
 
+import { Button } from '@/components/ui/button';
+import { Copy } from 'lucide-react';
 
-const ATTEMPT_ID = `attempt-${Date.now()}`;
+const DURATION = 10;
 
 const QUESTIONS: Question[] = [
     {
-        id: 'q1',
-        number: 1,
-        text: 'Explain the difference between var, let, and const in JavaScript. When would you use each?',
-        type: 'text',
-    },
-    {
         id: 'q2',
-        number: 2,
+        number: 1,
         text: 'Which of the following is NOT a valid HTTP status code category?',
         type: 'mcq',
         options: ['1xx - Informational', '2xx - Success', '6xx - Server Overload', '4xx - Client Error'],
     },
     {
-        id: 'q3',
-        number: 3,
-        text: 'Describe how the event loop works in Node.js and why it is important for asynchronous programming.',
-        type: 'text',
-    },
-    {
         id: 'q4',
-        number: 4,
+        number: 2,
         text: 'Which data structure uses LIFO (Last In, First Out) ordering?',
         type: 'mcq',
         options: ['Queue', 'Stack', 'Linked List', 'Tree'],
     },
     {
-        id: 'q5',
-        number: 5,
-        text: 'Write a function that checks whether a given string is a palindrome. Explain your approach.',
-        type: 'text',
-    },
-    {
         id: 'q6',
-        number: 6,
+        number: 3,
         text: 'What is the time complexity of binary search?',
         type: 'mcq',
         options: ['O(n)', 'O(log n)', 'O(n²)', 'O(1)'],
     },
     {
-        id: 'q7',
-        number: 7,
-        text: 'Explain the concept of closures in JavaScript with an example.',
-        type: 'text',
-    },
-    {
         id: 'q8',
-        number: 8,
+        number: 4,
         text: 'Which protocol is used for secure web communication?',
         type: 'mcq',
         options: ['HTTP', 'FTP', 'HTTPS', 'SMTP'],
@@ -74,11 +53,9 @@ const Index = () => {
     const [events, setEvents] = useState(getAllLogs());
     const [isStarted, setIsStarted] = useState(false);
     const { toast } = useToast();
-
-
-    console.log("helooo world,,, am i repeating .....")
-
     const currentQuestion = QUESTIONS[currentIndex];
+    const [submittedAttemptId, setSubmittedAttemptId] = useState<string | null>(null);
+    const [ATTEMPT_ID] = useState(() => `attempt-${Date.now()}`);
 
     useExamSecurity({
         attemptId: ATTEMPT_ID,
@@ -92,12 +69,12 @@ const Index = () => {
     });
 
     const timer = useExamTimer({
-        durationMinutes: 30,
+        durationMinutes: DURATION,
         attemptId: ATTEMPT_ID,
         onExpire: () => handleSubmit(),
+        enabled: isStarted && !isSubmitted,
     });
 
-    // Refresh event log periodically
     useEffect(() => {
         if (!isStarted) return;
 
@@ -115,14 +92,14 @@ const Index = () => {
         startAutoFlush();
         logEvent('exam_start', ATTEMPT_ID);
         timer.start();
-    }, [timer]);
+    }, [timer, ATTEMPT_ID]);
 
     const handleAnswerChange = useCallback(
         (value: string) => {
             setAnswers((prev) => ({ ...prev, [currentQuestion.id]: value }));
             logEvent('answer_change', ATTEMPT_ID, currentQuestion.id);
         },
-        [currentQuestion]
+        [currentQuestion, ATTEMPT_ID]
     );
 
     const navigateTo = useCallback(
@@ -130,10 +107,10 @@ const Index = () => {
             setCurrentIndex(index);
             logEvent('question_navigate', ATTEMPT_ID, QUESTIONS[index].id, `Navigated to Q${index + 1}`);
         },
-        []
+        [ATTEMPT_ID]
     );
 
-    const handleSubmit = useCallback(() => {
+    const handleSubmit = useCallback(async () => {
         logEvent('exam_submit', ATTEMPT_ID);
         markSubmitted();
         stopAutoFlush();
@@ -143,7 +120,14 @@ const Index = () => {
             title: 'Exam Submitted',
             description: 'Your answers have been recorded successfully.',
         });
-    }, [toast]);
+
+        const response = await submitAttempt(ATTEMPT_ID);
+        const returnedId = response.data.attemptId;
+        setSubmittedAttemptId(returnedId);
+        timer.stop();
+    }, [toast, timer, ATTEMPT_ID]);
+
+
 
     if (!isStarted) {
         return (
@@ -157,7 +141,7 @@ const Index = () => {
                     <h1 className="text-2xl font-bold mb-2">Technical Assessment</h1>
                     <p className="text-muted-foreground mb-6 text-sm leading-relaxed">
                         This is a proctored exam. Copy, paste, cut, and right-click will be disabled.
-                        Tab switches and focus changes are monitored. You have <strong>30 minutes</strong> to complete{' '}
+                        Tab switches and focus changes are monitored. You have <strong>{DURATION} minutes</strong> to complete{' '}
                         <strong>{QUESTIONS.length} questions</strong>.
                     </p>
                     <div className="space-y-3 text-xs text-muted-foreground bg-muted rounded-lg p-4 mb-6 text-left">
@@ -194,8 +178,27 @@ const Index = () => {
                         <p className="text-xs text-muted-foreground">
                             Answers: {Object.values(answers).filter((a) => a.trim()).length}/{QUESTIONS.length} answered
                         </p>
+                        <div className="bg-muted rounded-lg p-3 flex items-center justify-between mt-4">
+                            <code className="text-sm font-mono truncate">
+                                {submittedAttemptId}
+                            </code>
+
+                            <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => {
+                                    if (submittedAttemptId) {
+                                        navigator.clipboard.writeText(submittedAttemptId);
+                                    }
+                                }}
+                            >
+                                <Copy className="h-4 w-4" />
+                            </Button>
+                        </div>
                     </div>
                 </div>
+
+
             </div>
         );
     }
@@ -234,6 +237,8 @@ const Index = () => {
                 onSubmit={handleSubmit}
                 isLastQuestion={currentIndex === QUESTIONS.length - 1}
             />
+
+
 
         </div>
     );

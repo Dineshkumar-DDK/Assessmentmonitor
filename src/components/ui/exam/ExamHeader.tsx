@@ -21,9 +21,7 @@ export function ExamHeader({
   totalQuestions,
 }: ExamHeaderProps) {
 
- useEffect(()=>{
-  console.log(timerFormatted,"checking the formatted...----------------")
- },[timerFormatted])
+
   return (
     <header className="no-select bg-exam-header text-exam-header-foreground px-6 py-3 flex items-center justify-between">
       <div className="flex items-center gap-3">
