@@ -1,5 +1,4 @@
 import { Clock, Shield, Eye, EyeOff, AlertTriangle } from 'lucide-react';
-import { useEffect } from 'react';
 
 interface ExamHeaderProps {
   title: string;
