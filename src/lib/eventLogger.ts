@@ -33,11 +33,27 @@ export interface ExamEvent {
   };
 }
 
+export type LogListener=(logs:ExamEvent[])=>void;
+
 const STORAGE_KEY = 'exam_event_logs';
 const BATCH_SIZE = 10;
 const FLUSH_INTERVAL = 5000;
+const listeners = new Set<LogListener>();
+
+export const subscribeToLogs = (listener:LogListener)=>{
+    listeners.add(listener)
+    return () => {
+    listeners.delete(listener);
+  };
+}
+
+export const notifyListeners = ()=>{
+    const logs=getAllLogs();
+    listeners.forEach((listener)=>listener(logs))
+}
 
 let eventBuffer: ExamEvent[] = [];
+
 let flushTimer: ReturnType<typeof setInterval> | null = null;
 let isSubmitted = false;
 
@@ -104,7 +120,7 @@ export function logEvent(
   if (eventBuffer.length >= BATCH_SIZE) {
     flushBatch();
   }
-
+  notifyListeners()
   return event;
 }
 
@@ -152,4 +168,5 @@ export function resetLogger(): void {
   isSubmitted = false;
   eventBuffer = [];
   localStorage.removeItem(STORAGE_KEY);
+  notifyListeners();
 }
