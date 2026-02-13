@@ -12,7 +12,6 @@ import { submitAttempt } from "@/api/attempt.api";
 
 import { Button } from '@/components/ui/button';
 import { Copy } from 'lucide-react';
-import { EventLogPanel } from '@/components/ui/exam/EventLogPanel';
 
 const DURATION = 10;
 
@@ -198,7 +197,6 @@ const Index = () => {
                         </div>
                     </div>
                 </div>
-                <EventLogPanel events={events} />
 
             </div>
         );
@@ -239,7 +237,6 @@ const Index = () => {
                 isLastQuestion={currentIndex === QUESTIONS.length - 1}
             />
 
-            <EventLogPanel events={events} />
 
         </div>
     );
